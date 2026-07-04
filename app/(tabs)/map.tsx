@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import MapView from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 
 import { ThemedView } from '@/components/themed-view';
 
@@ -11,10 +11,23 @@ const ZADAR_REGION = {
   longitudeDelta: 0.06,
 };
 
+// Hard-coded placeholder to prove the marker pipeline renders end-to-end
+// before wiring pins to Firestore. Swap for real RoadEvent data later.
+const TEST_EVENT = {
+  latitude: 44.1194,
+  longitude: 15.2314,
+};
+
 export default function MapScreen() {
   return (
     <ThemedView style={styles.container}>
-      <MapView style={styles.map} initialRegion={ZADAR_REGION} />
+      <MapView style={styles.map} initialRegion={ZADAR_REGION}>
+        <Marker
+          coordinate={TEST_EVENT}
+          title="Test construction site"
+          description="Hard-coded marker — placeholder for a real RoadEvent"
+        />
+      </MapView>
     </ThemedView>
   );
 }
