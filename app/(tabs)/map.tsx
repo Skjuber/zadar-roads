@@ -1,7 +1,12 @@
-import { StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { fetchRoadEvents } from '@/lib/road-events';
+import type { RoadEvent } from '@/types/road-event';
 
 // Zadar, Croatia. Deltas are tuned to frame the city on first load.
 const ZADAR_REGION = {
@@ -11,23 +16,52 @@ const ZADAR_REGION = {
   longitudeDelta: 0.06,
 };
 
-// Hard-coded placeholder to prove the marker pipeline renders end-to-end
-// before wiring pins to Firestore. Swap for real RoadEvent data later.
-const TEST_EVENT = {
-  latitude: 44.1194,
-  longitude: 15.2314,
-};
-
 export default function MapScreen() {
+  const insets = useSafeAreaInsets();
+  const [events, setEvents] = useState<RoadEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchRoadEvents()
+      .then((data) => {
+        if (active) setEvents(data);
+      })
+      .catch(() => {
+        if (active) setError('Couldn’t load road events.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const showBanner = loading || error !== null || events.length === 0;
+
   return (
     <ThemedView style={styles.container}>
       <MapView style={styles.map} initialRegion={ZADAR_REGION}>
-        <Marker
-          coordinate={TEST_EVENT}
-          title="Test construction site"
-          description="Hard-coded marker — placeholder for a real RoadEvent"
-        />
+        {events.map((event) => (
+          <Marker
+            key={event.id}
+            coordinate={{ latitude: event.latitude, longitude: event.longitude }}
+            title={event.title}
+            description={event.description}
+          />
+        ))}
       </MapView>
+
+      {showBanner && (
+        <ThemedView style={[styles.banner, { top: insets.top + 8 }]}>
+          {loading && <ActivityIndicator />}
+          <ThemedText type="defaultSemiBold">
+            {loading ? 'Loading road events…' : (error ?? 'No road events yet')}
+          </ThemedText>
+        </ThemedView>
+      )}
     </ThemedView>
   );
 }
@@ -38,5 +72,20 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  banner: {
+    position: 'absolute',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
 });
