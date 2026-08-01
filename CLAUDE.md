@@ -53,3 +53,5 @@ Universal (iOS + Android + web) app built on **Expo Router** with file-based rou
 **MVP philosophy:** Manual-first, AI-assisted-later. Keep scope minimal; defer automation/agentic pipelines.
 
 **Before launch (GDPR):** Firestore security rules and a user-data-deletion capability are required.
+
+**Pre-scale requirement (before ingesting official data or accepting real user submissions):** `fetchRoadEvents` (`lib/road-events.ts`) currently reads the entire `roadEvents` collection unfiltered — fine only for MVP with a handful of docs. Before real data volume, it must become a **filtered, bounded query**: active-only (`status == 'active'`, so `pending`/`rejected` user submissions never leak onto the map) and geo-limited (Zadar bounds, not all of Croatia), with `limit`/pagination. Firestore **security rules must be tightened to match** — only expose active events, never `pending`/`rejected` docs (which carry `reporterId`). This is both a cost/perf and a GDPR/moderation concern.

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useUserLocation } from '@/hooks/use-user-location';
 import { fetchRoadEvents } from '@/lib/road-events';
 import type { RoadEvent } from '@/types/road-event';
 
@@ -18,6 +19,8 @@ const ZADAR_REGION = {
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
+  const mapRef = useRef<MapView>(null);
+  const { status: locationStatus, position } = useUserLocation();
   const [events, setEvents] = useState<RoadEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,11 +42,30 @@ export default function MapScreen() {
     };
   }, []);
 
+  // Recenter once onto the user when the first fix arrives (no force-follow).
+  useEffect(() => {
+    if (position) {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: position.latitude,
+          longitude: position.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        },
+        800,
+      );
+    }
+  }, [position]);
+
   const showBanner = loading || error !== null || events.length === 0;
 
   return (
     <ThemedView style={styles.container}>
-      <MapView style={styles.map} initialRegion={ZADAR_REGION}>
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={ZADAR_REGION}
+        showsUserLocation={locationStatus === 'granted'}>
         {events.map((event) => (
           <Marker
             key={event.id}
@@ -59,6 +81,14 @@ export default function MapScreen() {
           {loading && <ActivityIndicator />}
           <ThemedText type="defaultSemiBold">
             {loading ? 'Loading road events…' : (error ?? 'No road events yet')}
+          </ThemedText>
+        </ThemedView>
+      )}
+
+      {locationStatus === 'denied' && (
+        <ThemedView style={[styles.banner, { bottom: insets.bottom + 16 }]}>
+          <ThemedText type="defaultSemiBold">
+            Location off — enable it in Settings to see your position
           </ThemedText>
         </ThemedView>
       )}
