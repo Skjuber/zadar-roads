@@ -31,6 +31,7 @@ export default function MapScreen() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
 
   // Long press is the deliberate "drop a pin here" gesture (Google Maps convention),
   // so a stray tap won't create a report. Whether a long press on an existing marker
@@ -45,8 +46,9 @@ export default function MapScreen() {
     try {
       await submitDraftReport(draft);
       setDraft(null);
-      const data = await fetchRoadEvents(); // refetch so the newly written pin appears
-      setEvents(data);
+      // No refetch: the report is written `pending`, and once the map filters to
+      // status=='active' it shouldn't appear here anyway. Just confirm the write.
+      setConfirmation('Report submitted — pending review');
     } catch (err) {
       // Surface the raw failure — especially Firestore's `permission-denied` code —
       // instead of failing silently, so a rejected document shape is visible on screen.
@@ -89,14 +91,22 @@ export default function MapScreen() {
     }
   }, [position]);
 
+  // Auto-dismiss the submit confirmation after a few seconds (also clearable by tapping).
+  useEffect(() => {
+    if (!confirmation) return;
+    const timer = setTimeout(() => setConfirmation(null), 4000);
+    return () => clearTimeout(timer);
+  }, [confirmation]);
+
   const showBanner = loading || error !== null || events.length === 0;
 
   // Stack the Cancel pill above the "Location off" bottom pill when both show, so they
   // never overlap; otherwise it sits at the normal bottom position. The top status pill
   // lives at the top edge, so there's no collision there either.
   const cancelBottom = insets.bottom + 16 + (locationStatus === 'denied' ? 56 : 0);
-  // Submit-error pill sits one row above the draft pill so it never overlaps it.
-  const submitErrorBottom = cancelBottom + 56;
+  // Transient notice row (submit error OR confirmation — mutually exclusive) sits one
+  // row above the draft pill so it never overlaps the draft, denied, or top pills.
+  const noticeBottom = cancelBottom + 56;
 
   return (
     <ThemedView style={styles.container}>
@@ -143,8 +153,16 @@ export default function MapScreen() {
       )}
 
       {submitError && (
-        <ThemedView style={[styles.banner, { bottom: submitErrorBottom }]}>
+        <ThemedView style={[styles.banner, { bottom: noticeBottom }]}>
           <ThemedText type="defaultSemiBold">Submit failed: {submitError}</ThemedText>
+        </ThemedView>
+      )}
+
+      {confirmation && (
+        <ThemedView style={[styles.banner, { bottom: noticeBottom }]}>
+          <Pressable onPress={() => setConfirmation(null)} hitSlop={8}>
+            <ThemedText type="defaultSemiBold">{confirmation}</ThemedText>
+          </Pressable>
         </ThemedView>
       )}
 
