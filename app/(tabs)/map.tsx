@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import MapView, { Marker, type LatLng, type LongPressEvent, type MarkerDragStartEndEvent } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -24,6 +24,15 @@ export default function MapScreen() {
   const [events, setEvents] = useState<RoadEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Candidate location for a new user report, captured by long-pressing the map.
+  // Independent of events/location state; the report form (Move 2) will read it.
+  const [draft, setDraft] = useState<LatLng | null>(null);
+
+  // Long press is the deliberate "drop a pin here" gesture (Google Maps convention),
+  // so a stray tap won't create a report. Whether a long press on an existing marker
+  // falls through to the map is expected-but-untested — not verified against the docs.
+  const handleMapLongPress = (e: LongPressEvent) => setDraft(e.nativeEvent.coordinate);
+  const handleDraftDragEnd = (e: MarkerDragStartEndEvent) => setDraft(e.nativeEvent.coordinate);
 
   useEffect(() => {
     let active = true;
@@ -59,13 +68,19 @@ export default function MapScreen() {
 
   const showBanner = loading || error !== null || events.length === 0;
 
+  // Stack the Cancel pill above the "Location off" bottom pill when both show, so they
+  // never overlap; otherwise it sits at the normal bottom position. The top status pill
+  // lives at the top edge, so there's no collision there either.
+  const cancelBottom = insets.bottom + 16 + (locationStatus === 'denied' ? 56 : 0);
+
   return (
     <ThemedView style={styles.container}>
       <MapView
         ref={mapRef}
         style={styles.map}
         initialRegion={ZADAR_REGION}
-        showsUserLocation={locationStatus === 'granted'}>
+        showsUserLocation={locationStatus === 'granted'}
+        onLongPress={handleMapLongPress}>
         {events.map((event) => (
           <Marker
             key={event.id}
@@ -74,6 +89,15 @@ export default function MapScreen() {
             description={event.description}
           />
         ))}
+        {draft && (
+          <Marker
+            coordinate={draft}
+            pinColor="orange"
+            title="New report"
+            draggable
+            onDragEnd={handleDraftDragEnd}
+          />
+        )}
       </MapView>
 
       {showBanner && (
@@ -90,6 +114,15 @@ export default function MapScreen() {
           <ThemedText type="defaultSemiBold">
             Location off — enable it in Settings to see your position
           </ThemedText>
+        </ThemedView>
+      )}
+
+      {draft && (
+        <ThemedView style={[styles.banner, { bottom: cancelBottom }]}>
+          <ThemedText type="defaultSemiBold">Report location set</ThemedText>
+          <Pressable onPress={() => setDraft(null)} hitSlop={8}>
+            <ThemedText type="link">Cancel</ThemedText>
+          </Pressable>
         </ThemedView>
       )}
     </ThemedView>
