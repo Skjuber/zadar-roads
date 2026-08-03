@@ -1,17 +1,43 @@
-import { addDoc, collection, getDocs } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  onSnapshot,
+  query,
+  where,
+  type FirestoreError,
+  type Unsubscribe,
+} from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
 import type { RoadEvent } from '@/types/road-event';
 
 const COLLECTION = 'roadEvents';
 
-/** One-time read of all readable road events. Returns [] when the collection is empty. */
-export async function fetchRoadEvents(): Promise<RoadEvent[]> {
-  const snapshot = await getDocs(collection(db, COLLECTION));
-  return snapshot.docs.map((docSnap) => ({
-    ...(docSnap.data() as Omit<RoadEvent, 'id'>),
-    id: docSnap.id, // doc id is the source of truth; overrides any stored `id`
-  }));
+/**
+ * Live subscription to active road events. Calls `onData` with the current set on the
+ * first callback and again on every change; calls `onError` if the listener fails.
+ * Returns Firestore's unsubscribe function — call it to stop listening.
+ *
+ * Filtered to `status == 'active'`: never surfaces `pending`/`rejected` docs, and keeps
+ * the live listener off the unbounded collection.
+ */
+export function subscribeToActiveRoadEvents(
+  onData: (events: RoadEvent[]) => void,
+  onError: (error: FirestoreError) => void,
+): Unsubscribe {
+  const activeEvents = query(collection(db, COLLECTION), where('status', '==', 'active'));
+  return onSnapshot(
+    activeEvents,
+    (snapshot) => {
+      onData(
+        snapshot.docs.map((docSnap) => ({
+          ...(docSnap.data() as Omit<RoadEvent, 'id'>),
+          id: docSnap.id, // doc id is the source of truth; overrides any stored `id`
+        })),
+      );
+    },
+    onError,
+  );
 }
 
 /**
