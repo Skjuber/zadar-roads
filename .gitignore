@@ -25,13 +25,29 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
+firebase-debug.log
+firestore-debug.log
 
 # macOS
 .DS_Store
 *.pem
 
 # local env files
+.env
+.env.local
 .env*.local
+
+# secrets / service accounts
+# Firebase downloads admin keys as <project>-firebase-adminsdk-<hash>-<hash>.json,
+# which is why the adminsdk pattern is here as well as the generic ones.
+*firebase-adminsdk*.json
+*-service-account*.json
+serviceAccountKey.json
+.secrets/
+
+# firebase tooling
+.firebase/
 
 # typescript
 *.tsbuildinfo
