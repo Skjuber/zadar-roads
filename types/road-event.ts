@@ -21,7 +21,7 @@ export type RoadEventStatus =
   | 'expired' // endTime has passed
   | 'rejected'; // moderated out
 
-/** Provenance. Discriminates official ingestion from a user report. Custom (but ingestion-friendly). */
+/** Provenance. Discriminates official ingestion, a user report, and AI-extracted news. Custom (but ingestion-friendly). */
 export type RoadEventSource =
   | {
       kind: 'official';
@@ -32,6 +32,13 @@ export type RoadEventSource =
       kind: 'user';
       reporterId: string; // app user id who submitted the report
       photoUrl?: string; // Firebase Storage URL of an optional attached photo
+    }
+  | {
+      kind: 'ingested'; // AI-extracted from a news feed, awaiting approval (like 'user', starts pending)
+      feed: string; // source feed, e.g. 'antenazadar.hr'
+      articleUrl: string; // approver verifies the claim against this
+      articleTitle: string;
+      model: string; // Claude model that extracted it — audit trail
     };
 
 export interface RoadEvent {
