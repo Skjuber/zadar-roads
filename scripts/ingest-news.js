@@ -244,6 +244,13 @@ async function main() {
   await preflightFirestore(); // fail fast on auth/targeting before RSS + Claude calls
 
   const parser = new Parser({ headers: { 'User-Agent': 'zadar-roads-ingest/1.0' } });
+  // FEED SIZE LIMIT: this WordPress feed returns only ~10 newest items per request
+  // (posts_per_rss default). --max-age-days filters what those ~10 contain; it cannot
+  // fetch more. On a busy news day 10 items can span only a few hours, so a road-events
+  // article can scroll off the single page before a once-daily run sees it.
+  //   => Schedule this every few HOURS, not daily.
+  // Older items ARE reachable via `?paged=N` (verified: ?paged=2 returns the next, older
+  // page) — a future backfill could page through them; deliberately not implemented here.
   const feed = await parser.parseURL(FEED_URL);
   const items = feed.items ?? [];
 

@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 import MapView, { Marker, type LatLng, type LongPressEvent, type MarkerDragStartEndEvent } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ReportForm, type ReportFormValues } from '@/components/report-form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useUserLocation } from '@/hooks/use-user-location';
@@ -32,6 +33,7 @@ export default function MapScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [formVisible, setFormVisible] = useState(false);
 
   // Long press is the deliberate "drop a pin here" gesture (Google Maps convention),
   // so a stray tap won't create a report. Verified on a physical iPhone: a long press on an
@@ -39,13 +41,14 @@ export default function MapScreen() {
   const handleMapLongPress = (e: LongPressEvent) => setDraft(e.nativeEvent.coordinate);
   const handleDraftDragEnd = (e: MarkerDragStartEndEvent) => setDraft(e.nativeEvent.coordinate);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (values: ReportFormValues) => {
     if (!draft) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await submitDraftReport(draft);
+      await submitDraftReport(draft, values);
       setDraft(null);
+      setFormVisible(false); // close only on success; on failure the form stays open with values intact
       // No refetch: the report is written `pending`, and once the map filters to
       // status=='active' it shouldn't appear here anyway. Just confirm the write.
       setConfirmation('Report submitted — pending review');
@@ -218,13 +221,20 @@ export default function MapScreen() {
         <ThemedView style={[styles.banner, { bottom: cancelBottom }]}>
           {submitting && <ActivityIndicator />}
           <ThemedText type="defaultSemiBold">Report location set</ThemedText>
-          <Pressable onPress={handleSubmit} disabled={submitting} hitSlop={8}>
-            <ThemedText type="link">Submit</ThemedText>
+          <Pressable
+            onPress={() => {
+              setSubmitError(null);
+              setFormVisible(true);
+            }}
+            disabled={submitting}
+            hitSlop={8}>
+            <ThemedText type="link">Continue</ThemedText>
           </Pressable>
           <Pressable
             onPress={() => {
               setDraft(null);
               setSubmitError(null);
+              setFormVisible(false);
             }}
             disabled={submitting}
             hitSlop={8}>
@@ -232,6 +242,14 @@ export default function MapScreen() {
           </Pressable>
         </ThemedView>
       )}
+
+      <ReportForm
+        visible={formVisible}
+        submitting={submitting}
+        error={submitError}
+        onSubmit={handleSubmit}
+        onClose={() => setFormVisible(false)}
+      />
     </ThemedView>
   );
 }

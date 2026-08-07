@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
-import type { RoadEvent } from '@/types/road-event';
+import type { RoadEvent, RoadEventSeverity, RoadEventType } from '@/types/road-event';
 
 const COLLECTION = 'roadEvents';
 
@@ -41,21 +41,21 @@ export function subscribeToActiveRoadEvents(
 }
 
 /**
- * Write a minimal user-submitted RoadEvent at the given point, using placeholder
- * content (no form yet). Values are taken from the RoadEvent schema — not invented.
- * The shape satisfies the rules' stated constraints: `status: 'pending'` and
- * `source.kind: 'user'`. Rejections (e.g. permission-denied) propagate to the caller
- * so the UI can surface them. `id` is intentionally omitted — `doc.id` is authoritative.
+ * Write a user-submitted RoadEvent at the given point from the report form's values.
+ * `title`/`type`/`severity` come from the form; `status: 'pending'` and
+ * `source.kind: 'user'` stay hardcoded here — they are moderation/provenance
+ * guarantees, not user input. Rejections (e.g. permission-denied) propagate to the
+ * caller so the UI can surface them. `id` is omitted — `doc.id` is authoritative.
  */
-export async function submitDraftReport(coordinate: {
-  latitude: number;
-  longitude: number;
-}): Promise<void> {
+export async function submitDraftReport(
+  coordinate: { latitude: number; longitude: number },
+  input: { title: string; type: RoadEventType; severity: RoadEventSeverity },
+): Promise<void> {
   const now = Date.now();
   const report: Omit<RoadEvent, 'id'> = {
-    type: 'construction',
-    severity: 'low',
-    title: 'Test report',
+    type: input.type,
+    severity: input.severity,
+    title: input.title,
     latitude: coordinate.latitude,
     longitude: coordinate.longitude,
     startTime: now,
