@@ -49,7 +49,7 @@ export function subscribeToActiveRoadEvents(
  */
 export async function submitDraftReport(
   coordinate: { latitude: number; longitude: number },
-  input: { title: string; type: RoadEventType; severity: RoadEventSeverity },
+  input: { title: string; type: RoadEventType; severity: RoadEventSeverity; description?: string },
 ): Promise<void> {
   const now = Date.now();
   const report: Omit<RoadEvent, 'id'> = {
@@ -64,5 +64,7 @@ export async function submitDraftReport(
     createdAt: now,
     updatedAt: now,
   };
+  // Optional field — only write it when present (RoadEvent.description is optional).
+  if (input.description) report.description = input.description;
   await addDoc(collection(db, COLLECTION), report);
 }
